@@ -29,7 +29,7 @@ export function DigestPage({ digest }: { digest: NightDigest }) {
               {digest.rows.map((row) => (
                 <tr key={row.job}>
                   <th scope="row">{row.job}</th>
-                  <td>{row.owner ?? '—'}</td>
+                  <td>{row.owner?.trim() ? row.owner : '—'}</td>
                   <td>{row.runs}</td>
                   <td>
                     {row.retries >= 3 ? (
@@ -42,7 +42,7 @@ export function DigestPage({ digest }: { digest: NightDigest }) {
                     ) : row.failures}
                   </td>
                   <td>{row.lastStatus}</td>
-                  <td>{row.lastError ?? '—'}</td>
+                  <td>{row.lastError?.trim() ? row.lastError : '—'}</td>
                   <td><time datetime={row.firstAt}>{row.firstAt}</time></td>
                   <td><time datetime={row.lastAt}>{row.lastAt}</time></td>
                 </tr>

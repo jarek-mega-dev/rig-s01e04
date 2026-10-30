@@ -74,6 +74,16 @@ describe('digest view (independent of the reader and production routes)', () => 
     }
   });
 
+  it('renders blank owners and errors as missing data without changing the digest', async () => {
+    for (const missing of ['', ' \t ']) {
+      const value = digest([row({ owner: missing, lastError: missing })]);
+      const html = await render(value);
+      expect(html.match(/<td>—<\/td>/g)).toHaveLength(2);
+      expect(value.rows[0].owner).toBe(missing);
+      expect(value.rows[0].lastError).toBe(missing);
+    }
+  });
+
   it('marks every failure, including recovered failures with an ok final status and no error', async () => {
     for (const lastStatus of ['ok', 'retry', 'fail'] as const) {
       const html = await render(digest([row({

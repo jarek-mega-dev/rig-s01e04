@@ -1,0 +1,124 @@
+name: Publish course digest preview
+
+"on":
+  workflow_dispatch:
+    inputs:
+      include_marker:
+        description: Include the course marker (turn off only after the review)
+        type: boolean
+        required: true
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: course-pages-preview
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      actions: write
+    steps:
+      - name: Check out the reviewed application commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: 15995b9f927b2f2e379fa80db903268a5ecd70c7
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.14.1
+
+      - name: Install the pinned package manager and dependencies
+        run: |
+          npm install --global pnpm@11.25.0 --ignore-scripts --registry=https://registry.npmjs.org
+          pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org
+
+      - name: Test the reviewed application
+        run: |
+          pnpm test
+          pnpm typecheck
+
+      - name: Read Pages configuration
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+
+      - name: Export one self-contained page from the running local service
+        env:
+          INCLUDE_MARKER: ${{ inputs.include_marker }}
+          LANE_MARKER: ${{ inputs.include_marker && secrets.LANE_MARKER || '' }}
+          PORT: "17887"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$INCLUDE_MARKER" == "true" && -z "$LANE_MARKER" ]]; then
+            echo "The approved course marker is required but is not configured."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/rig-preview"
+          node --import tsx src/server.ts >"$RUNNER_TEMP/rig-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in {1..30}; do
+            kill -0 "$server_pid"
+            if curl --fail --silent "http://127.0.0.1:$PORT/health" >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$ready" != "true" ]]; then
+            echo "The local service did not become ready."
+            exit 1
+          fi
+          curl --fail --silent --show-error \
+            "http://127.0.0.1:$PORT/digest/2026-10-28" \
+            >"$RUNNER_TEMP/rig-preview/index.html"
+          node --input-type=module - "$RUNNER_TEMP/rig-preview/index.html" <<'JS'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          const html = readFileSync(process.argv[2], 'utf8');
+          assert(html.startsWith('<!doctype html>'), 'Expected a complete HTML document');
+          assert.equal((html.match(/<th scope="row">/g) ?? []).length, 5, 'Expected five sample jobs');
+          assert(html.includes('Bad lines: 1'), 'Expected the sample malformed-line count');
+          assert(!/<script\b|<link\b/i.test(html), 'The preview must be self-contained, without scripts');
+          if (process.env.INCLUDE_MARKER === 'true') {
+            assert(html.includes(process.env.LANE_MARKER), 'The required banner marker is missing');
+          } else {
+            assert(!process.env.LANE_MARKER, 'Cleanup must not load the marker');
+            assert(html.includes('no marker set'), 'Expected the marker-free banner');
+          }
+          console.log('Validated the static digest export; HTML and marker values are not logged.');
+          JS
+
+      - name: Upload the temporary Pages artifact
+        id: upload
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: ${{ runner.temp }}/rig-preview
+          retention-days: 1
+
+      - name: Deploy the public page
+        id: deploy
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+
+      - name: Remove the temporary artifact after successful deployment
+        if: ${{ success() && steps.deploy.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]]
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID"

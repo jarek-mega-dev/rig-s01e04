@@ -14,6 +14,10 @@ const css = `
   table { border-collapse: collapse; width: 100%; }
   th, td { text-align: left; padding: .35rem .75rem .35rem 0; border-bottom: 1px solid var(--line); }
   th { color: var(--mute); font-weight: normal; }
+  .digest-table-scroll { max-width: 100%; overflow-x: auto; }
+  .digest-table caption { text-align: left; margin-bottom: .75rem; }
+  .digest-table th, .digest-table td { vertical-align: top; white-space: nowrap; }
+  .digest-table th[scope="row"] { color: var(--fg); }
   .warn { color: var(--warn); }
   .mute { color: var(--mute); }
 `;
@@ -25,6 +29,7 @@ export function Layout(props: { title: string; lane: Lane; children: Child }) {
       <html lang="en">
         <head>
           <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
           <title>rig · {props.title}</title>
           <style>{raw(css)}</style>
         </head>

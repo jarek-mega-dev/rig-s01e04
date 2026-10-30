@@ -1,10 +1,11 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createApp } from '../src/app.js';
 import type { RigConfig } from '../src/config.js';
 import type { NightDigest, ReadNight, StatusCounts } from '../src/digest/types.js';
-import type { Status } from '../src/status.js';
+import { readStatus, type Status } from '../src/status.js';
 import { StatusBoard } from '../src/views/status.js';
 
 // Reader integration is verified after merge; no placeholder reader or log parser.
@@ -57,18 +58,11 @@ describe('status board view', () => {
   });
 });
 
-// A mock cannot resolve the absent module in this isolated worker branch.
-// Defer app/status imports until the reader worker's file has been merged.
-const hasReader = existsSync(new URL('../src/digest/reader.ts', import.meta.url));
-describe.skipIf(!hasReader)('status board digest links (mocked reader; needs reader module)', () => {
+describe('status board digest links (mocked reader)', () => {
   let runsDir: string;
   let config: RigConfig;
-  let createApp: typeof import('../src/app.js').createApp;
-  let readStatus: typeof import('../src/status.js').readStatus;
 
-  beforeEach(async () => {
-    ({ createApp } = await import('../src/app.js'));
-    ({ readStatus } = await import('../src/status.js'));
+  beforeEach(() => {
     runsDir = mkdtempSync(join(tmpdir(), 'rig-status-digest-'));
     config = {
       adapter: 'shim',

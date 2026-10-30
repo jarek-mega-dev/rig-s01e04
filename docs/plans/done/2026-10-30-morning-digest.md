@@ -1,8 +1,9 @@
 ---
 plan: morning-digest
-status: ready
+status: done
 owner: rook
 opened: 2026-10-29
+closed: 2026-10-30
 ---
 
 # Morning digest
@@ -77,3 +78,30 @@ page again with `LANE_MARKER` unset (the banner reads "no marker set") and uploa
 link. Move this plan to `docs/plans/done/` with its issue list.
 
 Done when: the preview link no longer shows the lane marker.
+
+## Issues
+
+| # | Issue | Blocked by |
+|---|-------|------------|
+| [1](https://github.com/jarek-mega-dev/rig-s01e04/issues/1) | Define the digest data contract | — |
+| [2](https://github.com/jarek-mega-dev/rig-s01e04/issues/2) | Read and aggregate a night's run log | #1 |
+| [3](https://github.com/jarek-mega-dev/rig-s01e04/issues/3) | Render GET /digest/:night | #1; integration with #2 |
+| [4](https://github.com/jarek-mega-dev/rig-s01e04/issues/4) | Expose GET /api/digest/:night | #1; integration with #2 and #3 |
+| [5](https://github.com/jarek-mega-dev/rig-s01e04/issues/5) | Link status-board nights to their digests | #1; integration with #2 and #3 |
+| [6](https://github.com/jarek-mega-dev/rig-s01e04/issues/6) | Test the digest HTML and JSON routes | #1; integration with #2, #3 and #4 |
+| [7](https://github.com/jarek-mega-dev/rig-s01e04/issues/7) | Publish and send the digest preview for review | #2–#6 |
+| [8](https://github.com/jarek-mega-dev/rig-s01e04/issues/8) | Remove the preview marker after review and archive the plan | #7, review received and replacement approved |
+
+## Completion record
+
+- Data: unchanged template sample logs for nights `2026-10-27` and `2026-10-28`.
+- Review and verification date: `2026-10-30`. The course confirmed that the reviewer had
+  seen the preview before the approved marker-free replacement was published.
+- The same public preview URL, <https://jarek-mega-dev.github.io/rig-s01e04/>, returns
+  HTTP 200 and shows `no marker set`. It still contains the five sample jobs and one
+  bad-line count; no client JavaScript or external stylesheet is required.
+- Verification: 87 tests in six files and TypeScript checking passed, and the public
+  page was checked through HTTP and in a browser. The temporary deployment artifact
+  was removed. The application code and sample fixtures were unchanged by cleanup.
+
+This records completion of the plan, not acceptance of the final course submission.

@@ -37,12 +37,35 @@ function table(html: string) {
   const tables = [...html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)];
   expect(tables).toHaveLength(1);
   const markup = tables[0][1];
-  const headers = [...markup.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/gi)].map((m) => text(m[1]));
-  const rows = [...markup.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)]
-    .map((row) => [...row[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map((cell) => text(cell[1])))
+  const heads = [...markup.matchAll(/<thead\b[^>]*>([\s\S]*?)<\/thead>/gi)];
+  const bodies = [...markup.matchAll(/<tbody\b[^>]*>([\s\S]*?)<\/tbody>/gi)];
+  expect(heads).toHaveLength(1);
+  expect(bodies).toHaveLength(1);
+  const headers = [...heads[0][1].matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/gi)].map((m) => text(m[1]));
+  // Row headings are data cells, not column headings; keep their position.
+  const rows = [...bodies[0][1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)]
+    .map((row) => [...row[1].matchAll(/<(th|td)\b[^>]*>([\s\S]*?)<\/\1>/gi)].map((cell) => text(cell[2])))
     .filter((cells) => cells.length > 0);
   return { headers, rows };
 }
+
+describe('table helper', () => {
+  it.each(['th', 'td'])('keeps body %s cells aligned with thead column headers', (jobTag) => {
+    const html = `<table>
+      <thead><tr><th>Job</th><th>Owner</th><th>Retries</th></tr></thead>
+      <tbody>
+        <tr><${jobTag} scope="row">&lt;job&gt;</${jobTag}><td>—</td><td><strong>3 high retries</strong></td></tr>
+        <tr><${jobTag} scope="row">zulu</${jobTag}><td>ops</td><td>0</td></tr>
+      </tbody>
+      <tfoot><tr><th>Total</th><td>2</td><td>3</td></tr></tfoot>
+    </table>`;
+
+    expect(table(html)).toEqual({
+      headers: ['Job', 'Owner', 'Retries'],
+      rows: [['<job>', '—', '3 high retries'], ['zulu', 'ops', '0']],
+    });
+  });
+});
 
 function rowFor(html: string, job: string) {
   const result = table(html);
